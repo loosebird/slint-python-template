@@ -1,0 +1,20 @@
+app-id: br.com.viniciuscosta.MeuAppSlint
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+command: main_bin
+finish-args:
+  # Permissões nativas para o Slint e GTK funcionarem
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri # Aceleração de hardware/GPU
+modules:
+  - name: meuapp
+    buildsystem: simple
+    build-commands:
+      # Pega o binário do Nuitka e coloca na pasta do Flatpak
+      - install -D dist/main_bin /app/bin/main_bin
+    sources:
+      - type: dir
+        path: .

@@ -1,0 +1,118 @@
+name: Build and Publish Release
+
+# Triggers only when a tag starting with 'v' is pushed (e.g., v1.0.0)
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Define your application identity here
+env:
+  APP_NAME: MySlintApp
+  COMPANY_NAME: "Vinicius Costa"
+  FLATPAK_ID: "com.viniciuscosta.myslintapp"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: Windows-Installer
+            
+          - os: macos-latest
+            artifact_name: macOS-Installer
+            
+          - os: ubuntu-latest
+            artifact_name: Linux-Installer
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set dynamic App Version from Git Tag
+        shell: bash
+        run: |
+          # Extracts "1.0.0" from "refs/tags/v1.0.0" and saves it to global env
+          echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: pip install nuitka slint zstandard
+
+      # ==========================================
+      # BUILD WINDOWS (.exe)
+      # ==========================================
+      - name: Build Windows Executable
+        if: runner.os == 'Windows'
+        run: |
+          python -m nuitka --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --windows-product-name="${{ env.APP_NAME }}" --windows-product-version="${{ env.APP_VERSION }}" --windows-company-name="${{ env.COMPANY_NAME }}" --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.exe" src/main.py
+
+      # ==========================================
+      # BUILD MACOS (.dmg)
+      # ==========================================
+      - name: Build macOS App Bundle
+        if: runner.os == 'macOS'
+        run: |
+          python -m nuitka --standalone --include-data-dir=src/ui=ui --output-dir=dist --macos-create-app-bundle --macos-app-name="${{ env.APP_NAME }}" --output-filename="${{ env.APP_NAME }}" src/main.py
+          
+      - name: Package macOS DMG
+        if: runner.os == 'macOS'
+        run: |
+          hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder dist/${{ env.APP_NAME }}.app -ov -format UDZO dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-arm64.dmg
+
+      # ==========================================
+      # BUILD LINUX (.flatpak)
+      # ==========================================
+      - name: Build Linux Binary
+        if: runner.os == 'Linux'
+        run: |
+          python -m nuitka --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --output-filename="main_bin" src/main.py
+
+      - name: Package Linux Flatpak
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install flatpak flatpak-builder -y
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          
+          # Note: We renamed the manifest file to a generic name for the template
+          flatpak-builder build-dir flatpak-manifest.yml --force-clean
+          flatpak build-export repo build-dir
+          flatpak build-bundle repo dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.flatpak ${{ env.FLATPAK_ID }}
+
+      # ==========================================
+      # UPLOAD TO GITHUB ACTIONS
+      # ==========================================
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/*.* # Matches .exe, .dmg, and .flatpak
+
+  # ==========================================
+  # PUBLISH JOB: Create GitHub Release page
+  # ==========================================
+  publish_release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all compiled artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
