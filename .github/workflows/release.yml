@@ -88,7 +88,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/*.*
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.flatpak
+            dist/*.bin
 
   publish_release:
     needs: build
