@@ -1,12 +1,10 @@
 name: Build and Publish Release
 
-# Triggers only when a tag starting with 'v' is pushed (e.g., v1.0.0)
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*pre*' # For pre-release tests or full releases use 'v*'
 
-# Define your application identity here
 env:
   APP_NAME: MySlintApp
   COMPANY_NAME: "Vinicius Costa"
@@ -19,13 +17,23 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact_name: Windows-Installer
-
+            arch: x86
+            suffix: exe
+          - os: windows-arm64
+            arch: arm64
+            suffix: exe
+          - os: macos-13
+            arch: x86
+            suffix: dmg
           - os: macos-latest
-            artifact_name: macOS-Installer
-
-          - os: ubuntu-22.04
-            artifact_name: Linux-Installer
+            arch: aarch64
+            suffix: dmg
+          - os: ubuntu-latest
+            arch: x86
+            suffix: flatpak
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            suffix: flatpak
 
     runs-on: ${{ matrix.os }}
 
@@ -33,61 +41,52 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set dynamic App Version from Git Tag
+      - name: Set dynamic App Version
         shell: bash
-        run: |
-          # Extracts "1.0.0" from "refs/tags/v1.0.0" and saves it to global env
-          echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+        run: echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
 
-      - name: Install Python Dependencies
+      - name: Install Tooling
         run: pip install nuitka slint zstandard
 
-      - name: Build Windows Executable
+      # BUILD WINDOWS
+      - name: Build Windows
         if: runner.os == 'Windows'
         run: |
-          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --windows-product-name="${{ env.APP_NAME }}" --windows-product-version="${{ env.APP_VERSION }}" --windows-company-name="${{ env.COMPANY_NAME }}" --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.exe" src/main.py
+          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --windows-product-name="${{ env.APP_NAME }}" --windows-product-version="${{ env.APP_VERSION }}" --windows-company-name="${{ env.COMPANY_NAME }}" --output-filename="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch }}.exe" src/main.py
 
-      - name: Build macOS App Bundle
+      # BUILD MACOS
+      - name: Build macOS
         if: runner.os == 'macOS'
         run: |
           python -m nuitka --standalone --include-data-dir=src/ui=ui --output-dir=dist --macos-create-app-bundle --macos-app-name="${{ env.APP_NAME }}" --output-filename="${{ env.APP_NAME }}" src/main.py
+          mv "dist/${{ env.APP_NAME }}.app" "dist/AppContent.app"
+          hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "dist/AppContent.app" -ov -format UDZO "dist/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch }}.dmg"
 
-          if [ -d "dist/main.app" ]; then mv dist/main.app "dist/${{ env.APP_NAME }}.app"; fi
-
-      - name: Package macOS DMG
-        if: runner.os == 'macOS'
-        run: |
-          hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "dist/${{ env.APP_NAME }}.app" -ov -format UDZO "dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-arm64.dmg"
-
-      - name: Build Linux Binary
+      # BUILD LINUX + FLATPAK
+      - name: Build Linux & Flatpak
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update && sudo apt-get install ccache -y
-          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin" src/main.py
+          sudo apt-get update && sudo apt-get install flatpak flatpak-builder ccache -y
+          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --output-filename="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch }}.bin" src/main.py
 
-      - name: Package Linux Flatpak
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get install flatpak flatpak-builder -y
+          # Flatpak setup
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-
           sed -i "s/{{FLATPAK_ID}}/${{ env.FLATPAK_ID }}/g" flatpak-manifest.yml
-          sed -i "s/{{APP_BIN}}/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin/g" flatpak-manifest.yml
+          sed -i "s/{{APP_BIN}}/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch }}.bin/g" flatpak-manifest.yml
 
           flatpak-builder --user build-dir flatpak-manifest.yml --force-clean --install-deps-from=flathub
           flatpak build-export repo build-dir
-          flatpak build-bundle repo dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.flatpak ${{ env.FLATPAK_ID }}
+          flatpak build-bundle repo "dist/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch }}.flatpak" ${{ env.FLATPAK_ID }}
 
-      - name: Upload Artifacts
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
+          name: release-${{ matrix.os }}-${{ matrix.arch }}
           path: |
             dist/*.exe
             dist/*.dmg
@@ -96,18 +95,18 @@ jobs:
 
   publish_release:
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
-      - name: Download all compiled artifacts
+      - name: Download
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: all-artifacts
+          merge-multiple: true
 
-      - name: Create GitHub Release and upload assets
+      - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*
+          files: all-artifacts/*
           generate_release_notes: true
