@@ -44,7 +44,8 @@ jobs:
       - name: Build with Nuitka (Windows)
         if: runner.os == 'Windows'
         run: |
-          python -m nuitka --standalone --onefile --include-data-dir=src/ui=ui --output-dir=build --windows-product-name="${{ env.APP_NAME }}" --windows-product-version="${{ env.APP_VERSION }}" --windows-company-name="${{ env.COMPANY_NAME }}" --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.exe" src/main.py
+          # Added: --assume-yes-for-downloads
+          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=build --windows-product-name="${{ env.APP_NAME }}" --windows-product-version="${{ env.APP_VERSION }}" --windows-company-name="${{ env.COMPANY_NAME }}" --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.exe" src/main.py
 
       - name: Build with Nuitka (macOS)
         if: runner.os == 'macOS'
@@ -54,7 +55,10 @@ jobs:
       - name: Build with Nuitka (Linux)
         if: runner.os == 'Linux'
         run: |
-          python -m nuitka --standalone --onefile --include-data-dir=src/ui=ui --output-dir=build --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin" src/main.py
+          # Installing ccache to speed up compilation and avoid timeouts
+          sudo apt-get update && sudo apt-get install ccache -y
+          # Added: --assume-yes-for-downloads
+          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=build --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin" src/main.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
