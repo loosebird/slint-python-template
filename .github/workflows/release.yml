@@ -81,7 +81,8 @@ jobs:
           sed -i "s/{{FLATPAK_ID}}/${{ env.FLATPAK_ID }}/g" flatpak-manifest.yml
           sed -i "s/{{APP_BIN}}/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin/g" flatpak-manifest.yml
 
-          flatpak-builder build-dir flatpak-manifest.yml --force-clean
+          # Adicionada a flag --install-deps-from=flathub
+          flatpak-builder build-dir flatpak-manifest.yml --force-clean --install-deps-from=flathub
           flatpak build-export repo build-dir
           flatpak build-bundle repo dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.flatpak ${{ env.FLATPAK_ID }}
 
