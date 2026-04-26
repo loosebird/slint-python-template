@@ -3,7 +3,8 @@ name: Build and Publish Release
 on:
   push:
     tags:
-      - 'v*pre*' # For pre-release tests or full releases use 'v*'
+      - 'v*'
+      - 'v*pre*'
 
 env:
   APP_NAME: MySlintApp
