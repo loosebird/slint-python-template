@@ -24,7 +24,7 @@ jobs:
           - os: macos-latest
             artifact_name: macOS-Installer
 
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             artifact_name: Linux-Installer
 
     runs-on: ${{ matrix.os }}
@@ -93,7 +93,7 @@ jobs:
 
   publish_release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: write
 
