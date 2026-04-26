@@ -19,10 +19,10 @@ jobs:
         include:
           - os: windows-latest
             artifact_name: Windows-Installer
-            
+
           - os: macos-latest
             artifact_name: macOS-Installer
-            
+
           - os: ubuntu-latest
             artifact_name: Linux-Installer
 
@@ -47,58 +47,51 @@ jobs:
       - name: Install Python Dependencies
         run: pip install nuitka slint zstandard
 
-      # ==========================================
-      # BUILD WINDOWS (.exe)
-      # ==========================================
       - name: Build Windows Executable
         if: runner.os == 'Windows'
         run: |
-          python -m nuitka --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --windows-product-name="${{ env.APP_NAME }}" --windows-product-version="${{ env.APP_VERSION }}" --windows-company-name="${{ env.COMPANY_NAME }}" --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.exe" src/main.py
+          # Added: --assume-yes-for-downloads
+          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --windows-product-name="${{ env.APP_NAME }}" --windows-product-version="${{ env.APP_VERSION }}" --windows-company-name="${{ env.COMPANY_NAME }}" --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.exe" src/main.py
 
-      # ==========================================
-      # BUILD MACOS (.dmg)
-      # ==========================================
       - name: Build macOS App Bundle
         if: runner.os == 'macOS'
         run: |
           python -m nuitka --standalone --include-data-dir=src/ui=ui --output-dir=dist --macos-create-app-bundle --macos-app-name="${{ env.APP_NAME }}" --output-filename="${{ env.APP_NAME }}" src/main.py
-          
+
       - name: Package macOS DMG
         if: runner.os == 'macOS'
         run: |
           hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder dist/${{ env.APP_NAME }}.app -ov -format UDZO dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-arm64.dmg
 
-      # ==========================================
-      # BUILD LINUX (.flatpak)
-      # ==========================================
       - name: Build Linux Binary
         if: runner.os == 'Linux'
         run: |
-          python -m nuitka --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --output-filename="main_bin" src/main.py
+          # Installing ccache to speed up compilation
+          sudo apt-get update && sudo apt-get install ccache -y
+          # Added: --assume-yes-for-downloads
+          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin" src/main.py
 
       - name: Package Linux Flatpak
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update && sudo apt-get install flatpak flatpak-builder -y
+          sudo apt-get install flatpak flatpak-builder -y
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          
-          # Note: We renamed the manifest file to a generic name for the template
+
+          # 1. Dynamically replace placeholders in the manifest
+          sed -i "s/{{FLATPAK_ID}}/${{ env.FLATPAK_ID }}/g" flatpak-manifest.yml
+          sed -i "s/{{APP_BIN}}/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin/g" flatpak-manifest.yml
+
+          # 2. Build the Flatpak using the updated manifest
           flatpak-builder build-dir flatpak-manifest.yml --force-clean
           flatpak build-export repo build-dir
           flatpak build-bundle repo dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.flatpak ${{ env.FLATPAK_ID }}
 
-      # ==========================================
-      # UPLOAD TO GITHUB ACTIONS
-      # ==========================================
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/*.* # Matches .exe, .dmg, and .flatpak
 
-  # ==========================================
-  # PUBLISH JOB: Create GitHub Release page
-  # ==========================================
   publish_release:
     needs: build
     runs-on: ubuntu-latest

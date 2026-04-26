@@ -1,4 +1,4 @@
-APP_NAME = MeuAppSlint
+APP_NAME = MySlintApp
 APP_VERSION = 1.0.0
 COMPANY_NAME = "Vinicius Costa"
 
@@ -22,7 +22,8 @@ else
     ARCH := $(RAW_ARCH)
 endif
 
-NUITKA_BASE_FLAGS = --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist
+# Variável unificada e posicionada ANTES das condições
+NUITKA_BASE_FLAGS = --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist
 
 ifeq ($(DETECTED_OS),Darwin)
     NUITKA_FLAGS = --standalone --include-data-dir=src/ui=ui --output-dir=dist \
