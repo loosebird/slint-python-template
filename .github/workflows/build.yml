@@ -15,15 +15,16 @@ env:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             artifact_name: Linux-Build
           - os: windows-latest
             artifact_name: Windows-Build
           - os: macos-latest
             artifact_name: macOS-Build
-    
+
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -51,6 +52,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           python -m nuitka --standalone --include-data-dir=src/ui=ui --output-dir=build --macos-create-app-bundle --macos-app-name="${{ env.APP_NAME }}" --output-filename="${{ env.APP_NAME }}" src/main.py
+
+          if [ -d "build/main.app" ]; then mv build/main.app "build/${{ env.APP_NAME }}.app"; fi
 
       - name: Build with Nuitka (Linux)
         if: runner.os == 'Linux'

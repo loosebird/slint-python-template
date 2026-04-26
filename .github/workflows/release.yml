@@ -15,7 +15,7 @@ env:
 jobs:
   build:
     strategy:
-      fail-fast: false # Impede que o erro de um OS cancele os outros
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -58,7 +58,6 @@ jobs:
         run: |
           python -m nuitka --standalone --include-data-dir=src/ui=ui --output-dir=dist --macos-create-app-bundle --macos-app-name="${{ env.APP_NAME }}" --output-filename="${{ env.APP_NAME }}" src/main.py
 
-          # Renomeia a pasta gerada pelo Nuitka antes de empacotar
           if [ -d "dist/main.app" ]; then mv dist/main.app "dist/${{ env.APP_NAME }}.app"; fi
 
       - name: Package macOS DMG
@@ -81,8 +80,7 @@ jobs:
           sed -i "s/{{FLATPAK_ID}}/${{ env.FLATPAK_ID }}/g" flatpak-manifest.yml
           sed -i "s/{{APP_BIN}}/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin/g" flatpak-manifest.yml
 
-          # Adicionada a flag --install-deps-from=flathub
-          flatpak-builder build-dir flatpak-manifest.yml --force-clean --install-deps-from=flathub
+          flatpak-builder --user build-dir flatpak-manifest.yml --force-clean --install-deps-from=flathub
           flatpak build-export repo build-dir
           flatpak build-bundle repo dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.flatpak ${{ env.FLATPAK_ID }}
 
