@@ -15,6 +15,7 @@ env:
 jobs:
   build:
     strategy:
+      fail-fast: false # Impede que o erro de um OS cancele os outros
       matrix:
         include:
           - os: windows-latest
@@ -50,7 +51,6 @@ jobs:
       - name: Build Windows Executable
         if: runner.os == 'Windows'
         run: |
-          # Added: --assume-yes-for-downloads
           python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --windows-product-name="${{ env.APP_NAME }}" --windows-product-version="${{ env.APP_VERSION }}" --windows-company-name="${{ env.COMPANY_NAME }}" --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.exe" src/main.py
 
       - name: Build macOS App Bundle
@@ -58,17 +58,18 @@ jobs:
         run: |
           python -m nuitka --standalone --include-data-dir=src/ui=ui --output-dir=dist --macos-create-app-bundle --macos-app-name="${{ env.APP_NAME }}" --output-filename="${{ env.APP_NAME }}" src/main.py
 
+          # Renomeia a pasta gerada pelo Nuitka antes de empacotar
+          if [ -d "dist/main.app" ]; then mv dist/main.app "dist/${{ env.APP_NAME }}.app"; fi
+
       - name: Package macOS DMG
         if: runner.os == 'macOS'
         run: |
-          hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder dist/${{ env.APP_NAME }}.app -ov -format UDZO dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-arm64.dmg
+          hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "dist/${{ env.APP_NAME }}.app" -ov -format UDZO "dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-arm64.dmg"
 
       - name: Build Linux Binary
         if: runner.os == 'Linux'
         run: |
-          # Installing ccache to speed up compilation
           sudo apt-get update && sudo apt-get install ccache -y
-          # Added: --assume-yes-for-downloads
           python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin" src/main.py
 
       - name: Package Linux Flatpak
@@ -77,11 +78,9 @@ jobs:
           sudo apt-get install flatpak flatpak-builder -y
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
-          # 1. Dynamically replace placeholders in the manifest
           sed -i "s/{{FLATPAK_ID}}/${{ env.FLATPAK_ID }}/g" flatpak-manifest.yml
           sed -i "s/{{APP_BIN}}/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin/g" flatpak-manifest.yml
 
-          # 2. Build the Flatpak using the updated manifest
           flatpak-builder build-dir flatpak-manifest.yml --force-clean
           flatpak build-export repo build-dir
           flatpak build-bundle repo dist/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-x64.flatpak ${{ env.FLATPAK_ID }}
@@ -90,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/*.* # Matches .exe, .dmg, and .flatpak
+          path: dist/*.*
 
   publish_release:
     needs: build
