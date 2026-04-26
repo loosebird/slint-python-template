@@ -63,8 +63,12 @@ jobs:
           # Added: --assume-yes-for-downloads
           python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=build --output-filename="${{ env.APP_NAME }}-${{ env.APP_VERSION }}-linux.bin" src/main.py
 
-      - name: Upload Artifact
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: build/*
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.flatpak
+            dist/*.bin
