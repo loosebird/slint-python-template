@@ -59,6 +59,7 @@ jobs:
 
       - name: Build Windows
         if: runner.os == 'Windows'
+        shell: bash
         run: |
           uv run python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist \
             --windows-product-name="${{ env.APP_NAME }}" \

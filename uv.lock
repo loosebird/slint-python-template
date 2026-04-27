@@ -8,22 +8,22 @@ version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "slint" },
-    { name = "zstandard" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "nuitka" },
+    { name = "zstandard" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "slint", specifier = "==1.16.1b1" },
-    { name = "zstandard", specifier = "==0.25.0" },
-]
+requires-dist = [{ name = "slint", specifier = "==1.16.1b1" }]
 
 [package.metadata.requires-dev]
-dev = [{ name = "nuitka", specifier = "==4.0.8" }]
+dev = [
+    { name = "nuitka", specifier = "==4.0.8" },
+    { name = "zstandard", specifier = "==0.25.0" },
+]
 
 [[package]]
 name = "nuitka"
