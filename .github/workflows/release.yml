@@ -36,7 +36,6 @@ jobs:
           APP_NAME=$(grep -E '^name\s*=' pyproject.toml | cut -d '"' -f2)
           COMPANY_NAME=$(grep -E '^company_name\s*=' pyproject.toml | cut -d '"' -f2)
           APP_DESC=$(grep -E '^description\s*=' pyproject.toml | cut -d '"' -f2)
-          COPYRIGHT=$(grep -E '^copyright\s*=' pyproject.toml | cut -d '"' -f2)
           APP_ID=$(grep -E '^app_id\s*=' pyproject.toml | cut -d '"' -f2)
           
           APP_VERSION=${GITHUB_REF_NAME#v}
@@ -45,7 +44,6 @@ jobs:
           echo "COMPANY_NAME=$COMPANY_NAME" >> $GITHUB_ENV
           echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
           echo "APP_DESC=$APP_DESC" >> $GITHUB_ENV
-          echo "COPYRIGHT=$COPYRIGHT" >> $GITHUB_ENV
           echo "APP_ID=$APP_ID" >> $GITHUB_ENV
 
       - name: Setup uv
@@ -66,7 +64,6 @@ jobs:
             --windows-product-version="${{ env.APP_VERSION }}" \
             --windows-company-name="${{ env.COMPANY_NAME }}" \
             --windows-file-description="${{ env.APP_DESC }}" \
-            --windows-legal-copyright="${{ env.COPYRIGHT }}" \
             --windows-icon-from-ico="assets/icon.ico" \
             --output-filename="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.exe" src/main.py
 

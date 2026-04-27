@@ -2,7 +2,6 @@ APP_NAME := $(shell grep -E '^name\s*=' pyproject.toml | cut -d '"' -f2)
 APP_VERSION := $(shell grep -E '^version\s*=' pyproject.toml | cut -d '"' -f2)
 APP_DESC := $(shell grep -E '^description\s*=' pyproject.toml | cut -d '"' -f2)
 COMPANY_NAME := $(shell grep -E '^company_name\s*=' pyproject.toml | cut -d '"' -f2)
-COPYRIGHT := $(shell grep -E '^copyright\s*=' pyproject.toml | cut -d '"' -f2)
 APP_ID := $(shell grep -E '^app_id\s*=' pyproject.toml | cut -d '"' -f2)
 
 MAIN_SCRIPT = src/main.py
@@ -69,7 +68,6 @@ else
         --windows-product-version="$(APP_VERSION)" \
         --windows-company-name="$(COMPANY_NAME)" \
         --windows-file-description="$(APP_DESC)" \
-        --windows-legal-copyright="$(COPYRIGHT)" \
         --windows-icon-from-ico="$(ICON_WIN)" \
         --output-filename="$(TARGET_FILE)"
     POST_BUILD_CMD = @echo "Windows build complete: $(TARGET_FILE)"

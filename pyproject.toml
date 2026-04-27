@@ -9,7 +9,6 @@ dependencies = [
 
 [tool.app-metadata]
 company_name = "Your Company"
-copyright = "Copyright (c) 2026 Your Company. All rights reserved."
 app_id = "com.yourcompany.myslintapp"
 
 [dependency-groups]
