@@ -32,56 +32,81 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Extract App Variables
+      - name: Extract App Variables from Makefile
         shell: bash
         run: |
           APP_NAME=$(grep -E '^APP_NAME\s*=' Makefile | cut -d '=' -f2 | xargs)
           COMPANY_NAME=$(grep -E '^COMPANY_NAME\s*=' Makefile | cut -d '=' -f2 | sed 's/"//g' | xargs)
-          APP_VERSION=${GITHUB_REF_NAME#v}
+          APP_DESC=$(grep -E '^APP_DESC\s*=' Makefile | cut -d '=' -f2 | sed 's/"//g' | xargs)
+          COPYRIGHT=$(grep -E '^COPYRIGHT\s*=' Makefile | cut -d '=' -f2 | sed 's/"//g' | xargs)
+          APP_ID=$(grep -E '^APP_ID\s*=' Makefile | cut -d '=' -f2 | sed 's/"//g' | xargs)
 
-          CLEAN_COMPANY=$(echo "$COMPANY_NAME" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
-          CLEAN_APP=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+          APP_VERSION=${GITHUB_REF_NAME#v}
 
           echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
           echo "COMPANY_NAME=$COMPANY_NAME" >> $GITHUB_ENV
           echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
-          echo "FLATPAK_ID=com.$CLEAN_COMPANY.$CLEAN_APP" >> $GITHUB_ENV
+          echo "APP_DESC=$APP_DESC" >> $GITHUB_ENV
+          echo "COPYRIGHT=$COPYRIGHT" >> $GITHUB_ENV
+          echo "APP_ID=$APP_ID" >> $GITHUB_ENV
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Install Tooling
-        run: pip install nuitka slint zstandard
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
       - name: Build Windows
         if: runner.os == 'Windows'
         run: |
-          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --windows-product-name="${{ env.APP_NAME }}" --windows-product-version="${{ env.APP_VERSION }}" --windows-company-name="${{ env.COMPANY_NAME }}" --output-filename="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.exe" src/main.py
+          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist \
+            --windows-product-name="${{ env.APP_NAME }}" \
+            --windows-product-version="${{ env.APP_VERSION }}" \
+            --windows-company-name="${{ env.COMPANY_NAME }}" \
+            --windows-file-description="${{ env.APP_DESC }}" \
+            --windows-legal-copyright="${{ env.COPYRIGHT }}" \
+            --windows-icon-from-ico="assets/icon.ico" \
+            --output-filename="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.exe" src/main.py
 
       - name: Build macOS
         if: runner.os == 'macOS'
         run: |
-          python -m nuitka --standalone --include-data-dir=src/ui=ui --output-dir=dist --macos-create-app-bundle --macos-app-name="${{ env.APP_NAME }}" --output-filename="${{ env.APP_NAME }}" src/main.py
-          mv "dist/main.app" "dist/AppContent.app"
-          hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "dist/AppContent.app" -ov -format UDZO "dist/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.dmg"
+          python -m nuitka --standalone --include-data-dir=src/ui=ui --output-dir=dist \
+            --macos-create-app-bundle \
+            --macos-app-name="${{ env.APP_NAME }}" \
+            --macos-app-version="${{ env.APP_VERSION }}" \
+            --macos-app-icon="assets/icon.icns" \
+            --output-filename="${{ env.APP_NAME }}" src/main.py
+
+          if [ -d "dist/main.app" ]; then mv "dist/main.app" "dist/${{ env.APP_NAME }}.app"; fi
+
+          hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "dist/${{ env.APP_NAME }}.app" -ov -format UDZO "dist/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.dmg"
 
       - name: Build Linux & Flatpak
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update && sudo apt-get install flatpak flatpak-builder ccache -y
-          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --output-filename="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.bin" src/main.py
+
+          python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist \
+            --output-filename="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.bin" src/main.py
+
+          CURRENT_BIN="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.bin"
+
+          sed -i "s/{{FLATPAK_ID}}/${{ env.APP_ID }}/g" flatpak-manifest.yml
+          sed -i "s/{{APP_BIN}}/$CURRENT_BIN/g" flatpak-manifest.yml
+
+          sed -i "s/{{APP_NAME}}/${{ env.APP_NAME }}/g" assets/app.desktop
+          sed -i "s/{{APP_BIN}}/$CURRENT_BIN/g" assets/app.desktop
+          sed -i "s/{{FLATPAK_ID}}/${{ env.APP_ID }}/g" assets/app.desktop
 
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          sed -i "s/{{FLATPAK_ID}}/${{ env.FLATPAK_ID }}/g" flatpak-manifest.yml
-          sed -i "s/{{APP_BIN}}/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.bin/g" flatpak-manifest.yml
-
           flatpak-builder --user build-dir flatpak-manifest.yml --force-clean --install-deps-from=flathub
           flatpak build-export repo build-dir
-          flatpak build-bundle repo "dist/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.flatpak" ${{ env.FLATPAK_ID }}
+          flatpak build-bundle repo "dist/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.flatpak" ${{ env.APP_ID }}
 
-      - name: Upload
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.os }}-${{ matrix.arch_label }}
@@ -97,13 +122,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download
+      - name: Download all compiled artifacts
         uses: actions/download-artifact@v4
         with:
           path: all-artifacts
           merge-multiple: true
 
-      - name: Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: all-artifacts/*

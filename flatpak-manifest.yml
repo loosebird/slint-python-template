@@ -4,17 +4,17 @@ runtime-version: '23.08'
 sdk: org.freedesktop.Sdk
 command: {{APP_BIN}}
 finish-args:
-  # Native permissions for Slint and GTK to work
   - --share=ipc
   - --socket=fallback-x11
   - --socket=wayland
-  - --device=dri # Hardware/GPU acceleration
+  - --device=dri
 modules:
   - name: myslintapp-module
     buildsystem: simple
     build-commands:
-      # Takes the Nuitka binary and place it in the Flatpak folder.
       - install -D dist/{{APP_BIN}} /app/bin/{{APP_BIN}}
+      - install -D assets/icon.png /app/share/icons/hicolor/256x256/apps/{{FLATPAK_ID}}.png
+      - install -D assets/app.desktop /app/share/applications/{{FLATPAK_ID}}.desktop
     sources:
       - type: dir
         path: .

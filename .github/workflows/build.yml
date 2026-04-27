@@ -28,7 +28,6 @@ jobs:
             arch_label: aarch64
 
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental == true }}
 
     steps:
       - name: Checkout code
@@ -48,12 +47,10 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: |
-          pip install nuitka slint zstandard
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        run: pip install -r requirements.txt
         shell: bash
 
-      - name: Build with Nuitka
+      - name: Build Test
         run: |
           python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=build --output-filename="test-${{ matrix.arch_label }}" src/main.py
         shell: bash

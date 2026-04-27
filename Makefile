@@ -1,6 +1,14 @@
 APP_NAME = MySlintApp
 APP_VERSION = 1.0.0
 COMPANY_NAME = "Vinicius Costa"
+APP_DESC = "A modern GUI application built with Slint and Python."
+COPYRIGHT = "Copyright (c) 2026 $(COMPANY_NAME). All rights reserved."
+APP_ID = "com.viniciuscosta.myslintapp"
+
+MAIN_SCRIPT = src/main.py
+ICON_WIN = assets/icon.ico
+ICON_MAC = assets/icon.icns
+ICON_LINUX = assets/icon.png
 
 ifeq ($(OS),Windows_NT)
     DETECTED_OS := Windows
@@ -10,20 +18,32 @@ else
     RAW_ARCH := $(shell uname -m)
 endif
 
-ifeq ($(RAW_ARCH),x86_64)
-    ARCH := x86
-else ifeq ($(RAW_ARCH),AMD64)
-    ARCH := x86
-else ifeq ($(RAW_ARCH),arm64)
-    ifeq ($(DETECTED_OS),Darwin)
+ifeq ($(DETECTED_OS),Windows)
+    ifeq ($(RAW_ARCH),AMD64)
+        ARCH := x64
+    else ifeq ($(RAW_ARCH),x86_64)
+        ARCH := x64
+    else ifeq ($(RAW_ARCH),arm64)
+        ARCH := arm64
+    else
+        ARCH := $(RAW_ARCH)
+    endif
+else ifeq ($(DETECTED_OS),Darwin)
+    ifeq ($(RAW_ARCH),x86_64)
+        ARCH := x86_64
+    else ifeq ($(RAW_ARCH),arm64)
+        ARCH := arm64
+    else
+        ARCH := $(RAW_ARCH)
+    endif
+else ifeq ($(DETECTED_OS),Linux)
+    ifeq ($(RAW_ARCH),x86_64)
+        ARCH := x86_64
+    else ifeq ($(RAW_ARCH),aarch64)
         ARCH := aarch64
     else
-        ARCH := arm64
+        ARCH := $(RAW_ARCH)
     endif
-else ifeq ($(RAW_ARCH),aarch64)
-    ARCH := aarch64
-else
-    ARCH := $(RAW_ARCH)
 endif
 
 NUITKA_BASE_FLAGS = --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist
@@ -34,9 +54,11 @@ ifeq ($(DETECTED_OS),Darwin)
         --macos-create-app-bundle \
         --macos-app-name="$(APP_NAME)" \
         --macos-app-version="$(APP_VERSION)" \
+        --macos-app-icon="$(ICON_MAC)" \
         --output-filename="$(APP_NAME)"
-    # Command to generate the DMG after the bundle
-    POST_BUILD_CMD = @if [ -d "dist/$(APP_NAME).app" ]; then hdiutil create -volname "$(APP_NAME)" -srcfolder "dist/$(APP_NAME).app" -ov -format UDZO "dist/$(TARGET_FILE)"; fi
+
+    POST_BUILD_CMD = @if [ -d "dist/main.app" ]; then mv "dist/main.app" "dist/$(APP_NAME).app"; fi; \
+                     if [ -d "dist/$(APP_NAME).app" ]; then hdiutil create -volname "$(APP_NAME)" -srcfolder "dist/$(APP_NAME).app" -ov -format UDZO "dist/$(TARGET_FILE)"; fi
 else ifeq ($(DETECTED_OS),Linux)
     TARGET_FILE = $(APP_NAME)-v$(APP_VERSION)-$(ARCH).bin
     NUITKA_FLAGS = $(NUITKA_BASE_FLAGS) --output-filename="$(TARGET_FILE)"
@@ -47,6 +69,9 @@ else
         --windows-product-name="$(APP_NAME)" \
         --windows-product-version="$(APP_VERSION)" \
         --windows-company-name="$(COMPANY_NAME)" \
+        --windows-file-description=$(APP_DESC) \
+        --windows-legal-copyright=$(COPYRIGHT) \
+        --windows-icon-from-ico="$(ICON_WIN)" \
         --output-filename="$(TARGET_FILE)"
     POST_BUILD_CMD = @echo "Windows build complete: $(TARGET_FILE)"
 endif
@@ -69,10 +94,10 @@ install:
 	$(PIP) install -r requirements.txt
 
 dev:
-	$(PYTHON) src/main.py
+	$(PYTHON) $(MAIN_SCRIPT)
 
 build: info
-	$(PYTHON) -m nuitka $(NUITKA_FLAGS) src/main.py
+	$(PYTHON) -m nuitka $(NUITKA_FLAGS) $(MAIN_SCRIPT)
 	$(POST_BUILD_CMD)
 
 clean:
