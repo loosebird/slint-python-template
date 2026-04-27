@@ -64,6 +64,7 @@ else ifeq ($(DETECTED_OS),Linux)
 else
     TARGET_FILE = $(APP_NAME)-v$(APP_VERSION)-$(ARCH).exe
     NUITKA_FLAGS = $(NUITKA_BASE_FLAGS) \
+        --windows-disable-console \
         --windows-product-name="$(APP_NAME)" \
         --windows-product-version="$(APP_VERSION)" \
         --windows-company-name="$(COMPANY_NAME)" \
