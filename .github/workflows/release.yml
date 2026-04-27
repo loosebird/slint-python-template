@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-      - 'v*pre*'
-
-env:
-  APP_NAME: MySlintApp
-  COMPANY_NAME: "Vinicius Costa"
-  FLATPAK_ID: "com.viniciuscosta.myslintapp"
 
 jobs:
   build:
@@ -23,12 +17,16 @@ jobs:
           - os: windows-arm64
             arch: arm64
             suffix: exe
+            experimental: true
+
           - os: macos-13
             arch: x86
             suffix: dmg
-          - os: macos-latest
+            experimental: true
+          - os: macos-latest # Apple Silicon
             arch: aarch64
             suffix: dmg
+
           - os: ubuntu-latest
             arch: x86
             suffix: flatpak
@@ -37,14 +35,27 @@ jobs:
             suffix: flatpak
 
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental == true }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set dynamic App Version
+      - name: Extract App Variables
         shell: bash
-        run: echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+        run: |
+          APP_NAME=$(grep -E '^APP_NAME\s*=' Makefile | cut -d '=' -f2 | xargs)
+          COMPANY_NAME=$(grep -E '^COMPANY_NAME\s*=' Makefile | cut -d '=' -f2 | sed 's/"//g' | xargs)
+
+          APP_VERSION=${GITHUB_REF_NAME#v}
+
+          CLEAN_COMPANY=$(echo "$COMPANY_NAME" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+          CLEAN_APP=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+
+          echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
+          echo "COMPANY_NAME=$COMPANY_NAME" >> $GITHUB_ENV
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          echo "FLATPAK_ID=com.$CLEAN_COMPANY.$CLEAN_APP" >> $GITHUB_ENV
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -54,28 +65,25 @@ jobs:
       - name: Install Tooling
         run: pip install nuitka slint zstandard
 
-      # BUILD WINDOWS
       - name: Build Windows
         if: runner.os == 'Windows'
         run: |
           python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --windows-product-name="${{ env.APP_NAME }}" --windows-product-version="${{ env.APP_VERSION }}" --windows-company-name="${{ env.COMPANY_NAME }}" --output-filename="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch }}.exe" src/main.py
 
-      # BUILD MACOS
       - name: Build macOS
         if: runner.os == 'macOS'
         run: |
           python -m nuitka --standalone --include-data-dir=src/ui=ui --output-dir=dist --macos-create-app-bundle --macos-app-name="${{ env.APP_NAME }}" --output-filename="${{ env.APP_NAME }}" src/main.py
-          mv "dist/${{ env.APP_NAME }}.app" "dist/AppContent.app"
+
+          mv "dist/main.app" "dist/AppContent.app"
           hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "dist/AppContent.app" -ov -format UDZO "dist/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch }}.dmg"
 
-      # BUILD LINUX + FLATPAK
       - name: Build Linux & Flatpak
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update && sudo apt-get install flatpak flatpak-builder ccache -y
           python -m nuitka --assume-yes-for-downloads --standalone --onefile --include-data-dir=src/ui=ui --output-dir=dist --output-filename="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch }}.bin" src/main.py
 
-          # Flatpak setup
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           sed -i "s/{{FLATPAK_ID}}/${{ env.FLATPAK_ID }}/g" flatpak-manifest.yml
           sed -i "s/{{APP_BIN}}/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch }}.bin/g" flatpak-manifest.yml
