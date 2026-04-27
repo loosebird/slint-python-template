@@ -1,3 +1,0 @@
-slint==1.16.1b1
-nuitka==4.0.8
-zstandard==0.25.0

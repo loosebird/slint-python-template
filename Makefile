@@ -1,9 +1,9 @@
-APP_NAME = MySlintApp
-APP_VERSION = 1.0.0
-COMPANY_NAME = "Vinicius Costa"
-APP_DESC = "A modern GUI application built with Slint and Python."
-COPYRIGHT = "Copyright (c) 2026 $(COMPANY_NAME). All rights reserved."
-APP_ID = "com.viniciuscosta.myslintapp"
+APP_NAME := $(shell grep -E '^name\s*=' pyproject.toml | cut -d '"' -f2)
+APP_VERSION := $(shell grep -E '^version\s*=' pyproject.toml | cut -d '"' -f2)
+APP_DESC := $(shell grep -E '^description\s*=' pyproject.toml | cut -d '"' -f2)
+COMPANY_NAME := $(shell grep -E '^company_name\s*=' pyproject.toml | cut -d '"' -f2)
+COPYRIGHT := $(shell grep -E '^copyright\s*=' pyproject.toml | cut -d '"' -f2)
+APP_ID := $(shell grep -E '^app_id\s*=' pyproject.toml | cut -d '"' -f2)
 
 MAIN_SCRIPT = src/main.py
 ICON_WIN = assets/icon.ico
@@ -56,7 +56,6 @@ ifeq ($(DETECTED_OS),Darwin)
         --macos-app-version="$(APP_VERSION)" \
         --macos-app-icon="$(ICON_MAC)" \
         --output-filename="$(APP_NAME)"
-
     POST_BUILD_CMD = @if [ -d "dist/main.app" ]; then mv "dist/main.app" "dist/$(APP_NAME).app"; fi; \
                      if [ -d "dist/$(APP_NAME).app" ]; then hdiutil create -volname "$(APP_NAME)" -srcfolder "dist/$(APP_NAME).app" -ov -format UDZO "dist/$(TARGET_FILE)"; fi
 else ifeq ($(DETECTED_OS),Linux)
@@ -69,15 +68,12 @@ else
         --windows-product-name="$(APP_NAME)" \
         --windows-product-version="$(APP_VERSION)" \
         --windows-company-name="$(COMPANY_NAME)" \
-        --windows-file-description=$(APP_DESC) \
-        --windows-legal-copyright=$(COPYRIGHT) \
+        --windows-file-description="$(APP_DESC)" \
+        --windows-legal-copyright="$(COPYRIGHT)" \
         --windows-icon-from-ico="$(ICON_WIN)" \
         --output-filename="$(TARGET_FILE)"
     POST_BUILD_CMD = @echo "Windows build complete: $(TARGET_FILE)"
 endif
-
-PYTHON = python
-PIP = pip
 
 .PHONY: info install dev build clean
 
@@ -90,15 +86,14 @@ info:
 	@echo "------------------"
 
 install:
-	$(PIP) install --upgrade pip
-	$(PIP) install -r requirements.txt
+	uv sync
 
 dev:
-	$(PYTHON) $(MAIN_SCRIPT)
+	uv run $(MAIN_SCRIPT)
 
 build: info
-	$(PYTHON) -m nuitka $(NUITKA_FLAGS) $(MAIN_SCRIPT)
+	uv run python -m nuitka $(NUITKA_FLAGS) $(MAIN_SCRIPT)
 	$(POST_BUILD_CMD)
 
 clean:
-	rm -rf dist build
+	rm -rf dist build .venv
