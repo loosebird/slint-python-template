@@ -14,13 +14,11 @@ jobs:
         include:
           - os: windows-latest
             arch: x86
-          - os: windows-arm64
+          - os: windows-11-arm
             arch: arm64
-            experimental: true
 
-          - os: macos-13
+          - os: macos-15-intel
             arch: x86
-            experimental: true
           - os: macos-latest # Apple Silicon (aarch64)
             arch: aarch64
 
