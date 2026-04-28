@@ -31,19 +31,37 @@ make install
 
 > This repository is also set as a public template on GitHub.
 
-### 2. Development
+### 2. Optional: Get app build info
+
+```bash
+make info
+```
+
+Result:
+```bash
+Build Info
+App: MySlintApp v1.0.0
+Description: A modern GUI application built with Slint and Python.
+Company Name: Your Company
+ID: com.yourcompany.myslintapp
+OS: Darwin
+Architecture: arm64
+Target File: MySlintApp-v1.0.0-arm64.dmg
+```
+
+### 3. Development
 To run the application in development mode (with hot-reload):
 ```bash
 make dev
 ```
 
-### 3. Local Build
+### 4. Local Build
 To generate the native binary for your current operating system:
 ```bash
 make build
 ```
 
-### 4. Validate the Binary
+### 5. Validate the Binary
 To run the compiled version located in the `dist/` folder:
 ```bash
 make preview

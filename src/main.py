@@ -1,12 +1,10 @@
 import slint
 import os
-import sys
 
 def get_resource_path(relative_path):
-    """ Ensures the path works both in the terminal and in the compiled binary """
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath(os.path.dirname(__file__)), relative_path)
+    """ Ensures the path works both in the terminal and in the compiled Nuitka binary """
+    base_path = os.path.abspath(os.path.dirname(__file__))
+    return os.path.join(base_path, relative_path)
 
 def main():
     # Locate the .slint file inside the ui/ folder.
