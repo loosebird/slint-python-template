@@ -16,9 +16,10 @@ This is a high-performance template for building native desktop applications usi
 
 Before you begin, you will need to have installed:
 
-1. [uv](https://github.com/astral-sh/uv).
-2. [GNU Make](https://www.gnu.org/software/make/).
-3. C compiler (GCC on Linux, [Xcode](https://developer.apple.com/xcode/) on macOS, or MSVC on Windows).
+1. [uv](https://github.com/astral-sh/uv);
+2. [GNU Make](https://www.gnu.org/software/make/);
+3. C compiler (GCC on Linux, [Xcode](https://developer.apple.com/xcode/) on macOS, or MSVC on Windows);
+4. [Rust](https://rust-lang.org/pt-BR/) and [slint-viewer](https://crates.io/crates/slint-viewer) (For Hot Module Replacement);
 
 ## How to Use
 
@@ -31,37 +32,33 @@ make install
 
 > This repository is also set as a public template on GitHub.
 
-### 2. Optional: Get app build info
+### 2. Development Workflow
 
+The development process is divided into two distinct modes to separate visual design from business logic.
+
+- UI Design Mode (with Hot Module Replacement (HMR))
+
+Runs the Slint viewer for real-time interface design. This mode supports Hot Module Replacement (HMR), updating the UI instantly when `.slint` files are saved. See [Prerequisites](https://github.com/loosebird/slint-python-template#Prerequisites).
+> Note: Python logic is entirely bypassed in this mode. Buttons and callbacks will not trigger any backend functions.
 ```bash
-make info
+make ui
 ```
 
-Result:
-```bash
-Build Info
-App: MySlintApp v1.0.0
-Description: A modern GUI application built with Slint and Python.
-Company Name: Your Company
-ID: com.yourcompany.myslintapp
-OS: Darwin
-Architecture: arm64
-Target File: MySlintApp-v1.0.0-arm64.dmg
-```
+- Full Application Mode (with Python Logic)
 
-### 3. Development
-To run the application in development mode (with hot-reload):
+Runs the complete application, integrating the Slint frontend with the Python backend. Use this to test actual functionality, state management, and business logic.
+> Note: This mode does not support HMR. The process must be manually restarted to reflect changes made to either `.slint` or `.py` files.
 ```bash
 make dev
 ```
 
-### 4. Local Build
+### 3. Local Build
 To generate the native binary for your current operating system:
 ```bash
 make build
 ```
 
-### 5. Validate the Binary
+### 4. Validate the Binary
 To run the compiled version located in the `dist/` folder:
 ```bash
 make preview

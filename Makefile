@@ -74,7 +74,7 @@ else
     POST_BUILD_CMD = @echo "Windows build complete: $(TARGET_FILE)"
 endif
 
-.PHONY: info install dev build clean
+.PHONY: info install dev build clean preview ui
 
 info:
 	@echo "Build Info"
@@ -91,6 +91,9 @@ install:
 
 dev:
 	uv run $(MAIN_SCRIPT)
+
+ui:
+	slint-viewer --auto-reload src/ui/main.slint
 
 build: info
 	uv run python -m nuitka $(NUITKA_FLAGS) $(MAIN_SCRIPT)
