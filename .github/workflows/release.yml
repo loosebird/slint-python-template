@@ -37,9 +37,9 @@ jobs:
           COMPANY_NAME=$(grep -E '^company_name\s*=' pyproject.toml | cut -d '"' -f2)
           APP_DESC=$(grep -E '^description\s*=' pyproject.toml | cut -d '"' -f2)
           APP_ID=$(grep -E '^app_id\s*=' pyproject.toml | cut -d '"' -f2)
-          
+
           APP_VERSION=${GITHUB_REF_NAME#v}
-          
+
           echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
           echo "COMPANY_NAME=$COMPANY_NAME" >> $GITHUB_ENV
           echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
@@ -65,7 +65,7 @@ jobs:
             --windows-product-version="${{ env.APP_VERSION }}" \
             --windows-company-name="${{ env.COMPANY_NAME }}" \
             --windows-file-description="${{ env.APP_DESC }}" \
-            --windows-icon-from-ico="assets/icon.ico" \
+            --windows-icon-from-ico="src/assets/icon.ico" \
             --output-filename="${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.exe" src/main.py
 
       - name: Build macOS
@@ -75,12 +75,13 @@ jobs:
             --macos-create-app-bundle \
             --macos-app-name="${{ env.APP_NAME }}" \
             --macos-app-version="${{ env.APP_VERSION }}" \
-            --macos-app-icon="assets/icon.icns" \
+            --macos-app-icon="src/assets/icon.icns" \
             --output-filename="${{ env.APP_NAME }}" src/main.py
 
           if [ -d "dist/main.app" ]; then mv "dist/main.app" "dist/${{ env.APP_NAME }}.app"; fi
           hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "dist/${{ env.APP_NAME }}.app" -ov -format UDZO "dist/${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-${{ matrix.arch_label }}.dmg"
 
+# ================== LINUX ==================
       - name: Build Linux & Flatpak
         if: runner.os == 'Linux'
         run: |
@@ -93,10 +94,11 @@ jobs:
 
           sed -i "s/{{FLATPAK_ID}}/${{ env.APP_ID }}/g" flatpak-manifest.yml
           sed -i "s/{{APP_BIN}}/$CURRENT_BIN/g" flatpak-manifest.yml
+          sed -i "s/{{APP_NAME}}/${{ env.APP_NAME }}/g" flatpak-manifest.yml # Nova linha
 
-          sed -i "s/{{APP_NAME}}/${{ env.APP_NAME }}/g" assets/app.desktop
-          sed -i "s/{{APP_BIN}}/$CURRENT_BIN/g" assets/app.desktop
-          sed -i "s/{{FLATPAK_ID}}/${{ env.APP_ID }}/g" assets/app.desktop
+          sed -i "s/{{APP_NAME}}/${{ env.APP_NAME }}/g" src/assets/app.desktop
+          sed -i "s/{{APP_BIN}}/$CURRENT_BIN/g" src/assets/app.desktop
+          sed -i "s/{{FLATPAK_ID}}/${{ env.APP_ID }}/g" src/assets/app.desktop
 
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak-builder --user build-dir flatpak-manifest.yml --force-clean --install-deps-from=flathub

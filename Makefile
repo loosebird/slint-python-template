@@ -5,9 +5,9 @@ COMPANY_NAME := $(shell grep -E '^company_name\s*=' pyproject.toml | cut -d '"' 
 APP_ID := $(shell grep -E '^app_id\s*=' pyproject.toml | cut -d '"' -f2)
 
 MAIN_SCRIPT = src/main.py
-ICON_WIN = assets/icon.ico
-ICON_MAC = assets/icon.icns
-ICON_LINUX = assets/icon.png
+ICON_WIN = src/assets/icon.ico
+ICON_MAC = src/assets/icon.icns
+ICON_LINUX = src/assets/icon.png
 
 ifeq ($(OS),Windows_NT)
     DETECTED_OS := Windows
@@ -77,12 +77,14 @@ endif
 .PHONY: info install dev build clean
 
 info:
-	@echo "--- Build Info ---"
+	@echo "Build Info"
 	@echo "App: $(APP_NAME) v$(APP_VERSION)"
+	@echo "Description: $(APP_DESC)"
+	@echo "Company Name: $(COMPANY_NAME)"
+	@echo "ID: $(APP_ID)"
 	@echo "OS: $(DETECTED_OS)"
-	@echo "Architecture: $(ARCH)"
+	@echo "Architecture: $(RAW_ARCH)"
 	@echo "Target File: $(TARGET_FILE)"
-	@echo "------------------"
 
 install:
 	uv sync
@@ -93,6 +95,16 @@ dev:
 build: info
 	uv run python -m nuitka $(NUITKA_FLAGS) $(MAIN_SCRIPT)
 	$(POST_BUILD_CMD)
+
+preview:
+	@echo "Launching Compiled App"
+ifeq ($(DETECTED_OS),Windows)
+	@./dist/$(TARGET_FILE)
+else ifeq ($(DETECTED_OS),Darwin)
+	@open dist/$(APP_NAME).app
+else
+	@./dist/$(TARGET_FILE)
+endif
 
 clean:
 	rm -rf dist build .venv
